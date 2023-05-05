@@ -1,0 +1,97 @@
+---
+title: "Final project"
+author: "Sophie Perez"
+data: May 4th 2023
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Load in the data and view it
+
+```{r}
+scores <- read.csv("student-por.csv")
+knitr::kable(head(scores, 10))
+```
+
+Libraries we will use
+
+```{r}
+library(ggplot2)
+library(ggcorrplot)
+```
+
+```{r}
+original_len <- nrow(scores)
+scores <- na.omit(scores)
+final_len <- nrow(scores)
+cat("Removed", original_len-final_len, "rows with NA values")
+```
+
+Remove the features I don't want to use \*mention why they were not used
+
+```{r}
+unused_features <- c("school", "sex", "address", "famsize", "Medu", "Fedu", "Mjob", "Fjob", "guardian", "nursery", "G1", "G2")
+for (feature in unused_features) {
+  scores[feature] <- NULL
+}
+knitr::kable(head(scores, 10))
+```
+
+Convert non-numeric features to numeric
+
+```{r}
+scores$Pstatus <- ifelse(scores$Pstatus == "A", 0, 1)
+
+scores$reason <- ifelse(scores$reason == "course", 0, 
+                        ifelse(scores$reason == "home", 1, 
+                               ifelse(scores$reason == "reputation", 2, 3)))
+
+binaries <- c("schoolsup", "famsup", "paid", "activities", "higher", "internet", "romantic")
+for (feature in binaries) {
+  scores[feature] <- ifelse(scores[feature] == "yes", 1, 0)[,1]
+}
+
+knitr::kable(head(scores, 10))
+```
+
+Now that the data is all numeric, we can look at the correlations
+
+```{r}
+correlations_matrix <- cor(scores)
+
+ggcorrplot(correlations_matrix, type = "lower", outline.color = "white", colors = c("blue", "white", "red"), lab = FALSE)
+```
+
+This heat graph shows us that surprisingly, there is not much of a correlation on alcohol consumption. and a students performance; answering my question. This visualization does give more information on what is tied to better academic performance though (G3 aka Final Scores), i.e., wanting to pursue higher education, age, more study time
+
+There are some higher correlations that we can ignore: Walc vs Dalc (weekend and weekday drinking habits don't differ much for a person), Walc vs goout (an obvious correlation: if you go out more on weekends, you'll likely drink more)
+
+The correlations that stand out are: higher vs failures (negative), G3 vs failures (negative), failures vs age (positive),\
+higher vs G3 (positive)
+
+The feature that had the strongest correlation with the final grade is the **higher** feature, which is a boolean value that represent if the person plans to pursue a higher education after college.
+
+```{r}
+ggplot(scores, aes(x = factor(higher), y = G3)) +
+  geom_boxplot() +
+  labs(x = "Higher education (0 = no, 1 = yes)", y = "G3 grade")
+```
+
+Box plots showing students students who wish to pursure higher education and those who dont; along with their average final scores (G3). This showcasees that those who wish to attend higher education also tend to perform better in school.
+
+```{r}
+averages <- aggregate(scores$G3, by=list(Walc=scores$Walc), FUN=mean)
+
+plot(averages$Walc, averages$x, ylim = c(0,14), ylab="Average final grade", xlab="Weekend alcohol consumption")
+```
+
+Average final grades (G3 score) per weekly alcohol consumption
+
+```{r}
+averages <- aggregate(scores$G3, by=list(higher=scores$higher), FUN=mean)
+
+cat("Average score for those not pursuing higher education:", averages[1,2], "\n")
+cat("Average score for those pursuing higher education:", averages[2,2])
+```
+s
